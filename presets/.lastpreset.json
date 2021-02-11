@@ -1,0 +1,21 @@
+{
+    "datafiles": [
+        [
+            "/Users/tprzybyl/Documents/Stage INT/ANEMO/PRPG/data/sub-001_ses-a90_task-nomexp_eyetrack.asc"
+        ],
+        "ASCii (*.asc)"
+    ],
+    "edfevents": [
+        "StimulusOn",
+        "StimulusOff",
+        "TargetOn",
+        "TargetOff"
+    ],
+    "edfstart": "Trialinfo",
+    "mdatafiles": [],
+    "settings": [
+        "P_deg",
+        "P_deg_f",
+        "time"
+    ]
+}

@@ -1,0 +1,126 @@
+{
+    "P_deg": {
+        "desc": "This is the position of the eyes in degrees on the screen.",
+        "func": "PositionDeg",
+        "name": "Position in Degrees",
+        "reqs": ["P_px", "Screen.px_per_deg"]
+    },
+    "P_deg_f": {
+        "desc": "This is the position of the eyes in degrees on the screen. A filter has been applied",
+        "func": "Filtering",
+        "name": "Bias",
+        "reqs": ["P_deg", "Screen.framerate"]
+    },
+    "Screen": {
+        "framerate": {
+            "desc": "This is the refresh rate of the screen, the result is in frames per second, aka in hertz(hz)",
+            "func": "ScreenFramerate",
+            "name": "Framerate in Hertz",
+            "reqs": ["events.msg"]
+        },
+        "px_per_deg": {
+            "desc": "This is the amount of pixels on the screen per degrees",
+            "func": "ScreenPixPerDeg",
+            "name": "Pixels per degrees",
+            "reqs": ["Screen.screen_width_px", "Screen.screen_width_deg"]
+        },
+        "screen_height_cm": {
+            "desc": "This is the height of the screen, aka horizontal size, in centimeters, this cannot be calculated afaik, user input required",
+            "func": "NONE",
+            "name": "Screen height in centimeters",
+            "reqs": []
+        },
+        "screen_height_deg": {
+            "desc": "This is the height of the screen, aka horizontal size, in degrees",
+            "func": "ScreenHeightDeg",
+            "name": "Screen Height in degrees",
+            "reqs": ["Screen.screen_height_cm", "Screen.viewing_Distance_cm"]
+        },
+        "screen_height_px": {
+            "desc": "This is the height of the screen, aka horizontal size, in pixels",
+            "func": "ScreenHeightPx",
+            "name": "Screen Height in pixels",
+            "reqs": ["events.msg"]
+        },
+        "screen_width_cm": {
+            "desc": "This is the width of the screen, aka horizontal size, in centimeters, this cannot be calculated afaik, user input required",
+            "func": "NONE",
+            "name": "Screen width in centimeters",
+            "reqs": []
+        },
+        "screen_width_deg": {
+            "desc": "This is the width of the screen, aka horizontal size, in degrees",
+            "func": "ScreenWidthDeg",
+            "name": "Screen width in degrees",
+            "reqs": ["Screen.screen_width_cm", "Screen.viewing_Distance_cm"]
+        },
+        "screen_width_px": {
+            "desc": "This is the width of the screen, aka horizontal size, in pixels",
+            "func": "ScreenWidthPx",
+            "name": "Screen width in pixels",
+            "reqs": ["events.msg"]
+        },
+        "viewing_Distance_cm": {
+            "desc": "This is the distance between the test subject's eyes and the screen, this cannot be calculated afaik, user input required",
+            "func": "NONE",
+            "name": "Viewing Distance in cm",
+            "reqs": []
+        }
+    },
+    "V_deg": {
+        "desc": "This is the velocity of the eye in degrees",
+        "func": "Velocity",
+        "name": "Velocity in degrees",
+        "reqs": ["P_deg", "Screen.framerate"]
+    },
+    "V_deg_NaN": {
+        "desc": "This is the velocity of the eye in degrees after suppressing saccades",
+        "func": "SuppSaccades",
+        "name": "Velocity in degrees, suppressed saccades",
+        "reqs": ["V_deg", "events.Saccades", "events.microSaccades", "time"]
+    },
+    "V_deg_f": {
+        "desc": "This is the velocity of the eye in degrees, it is using filtered position data",
+        "func": "Velocity",
+        "name": "Velocity in degrees, filtered pos",
+        "reqs": ["P_deg_f", "Screen.framerate"]
+    },
+    "V_deg_f_NaN": {
+        "desc": "This is the velocity of the eye in degrees after suppressing saccades, it is using filtered position data",
+        "func": "SuppSaccades",
+        "name": "Velocity in degrees, filtered pos, suppressed saccades",
+        "reqs": ["V_deg", "events.Saccades", "events.microSaccades", "time"]
+    },
+    "V_deg_f_f": {
+        "desc": "This is the filtered velocity of the eye in degrees, it is using filtered position data",
+        "func": "Filtering",
+        "name": "Filtered Velocity in degrees, filtered pos",
+        "reqs": ["V_deg_f", "Screen.framerate"]
+    },
+    "V_deg_f_f_NaN": {
+        "desc": "This is the filtered velocity of the eye in degrees after suppressing saccades, it is using filtered position data",
+        "func": "SuppSaccades",
+        "name": "Filtered Velocity in degrees, filtered pos, suppressed saccades",
+        "reqs": ["V_deg_f_f", "events.Saccades", "events.microSaccades", "time"]
+    },
+    "bias": {
+        "desc": "I am unsure tbh... i will have to ask",
+        "func": "Bias",
+        "name": "Bias",
+        "reqs": ["events.msg"]
+    },
+    "dir_target": {
+        "desc": "This is the direction of the target. AFAIK, it is only bidirectionnal, so it is only -1 or 1, respectively left and right (not sure?)",
+        "func": "DirTarget",
+        "name": "Directon of the target",
+        "reqs": ["events.msg"]
+    },
+    "events": {
+        "microSaccades": {
+            "desc": "These are microSaccades that are not detected by the eyelink, they are calculated with a velocity check",
+            "func": "DetectMissac",
+            "name": "microSaccades",
+            "reqs": ["V_deg", "time"]
+        }
+    }
+}

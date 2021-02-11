@@ -1,0 +1,15 @@
+{
+    "datafiles": [
+        [],
+        ""
+    ],
+    "edfevents": [
+        "StimulusOn",
+        "StimulusOff",
+        "TargetOn",
+        "TargetOff"
+    ],
+    "edfstart": "Trialinfo",
+    "mdatafiles": [],
+    "settings": []
+}
