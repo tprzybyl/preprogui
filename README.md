@@ -26,3 +26,6 @@ To do list:
 - Improve the Data Structure vizualisation tree
 - Rework Data Exportation (Choice of format, choose name etc)
 - no-gui mode, for advanced users, to make computation from files, using only presets
+ANNA wishlist
+- making "navigation" across trials easy (for visualization purposes)
+- allowing to manually "tag" trials as errors...
