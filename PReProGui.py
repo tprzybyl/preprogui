@@ -317,10 +317,35 @@ def PushReset(origin):
     ResetMetadata(origin)
 
 
-def ExportPkl(origin):
-    with open('EXPORT.pkl', 'wb') as file:
+def Export(origin):
+    def jsonify(data):
+        for k in data:
+            print('///')
+            print(type(k), type(data))
+            print('///')
+            if type(data) is dict:
+                print('dic : ',type(data[k]))
+                if type(data[k]) in [list, tuple, dict]:
+                    jsonify(data[k])
+                elif type(data[k]) is np.ndarray:
+                    data[k] = data[k].tolist()
+            elif type(k) in [list, tuple, dict]:
+                jsonify(k)
+            elif type(k) is np.ndarray:
+                k = k.to_list()
+
+    addr = QFileDialog.getSaveFileName(directory='finalstructures', filter='Pickle format(*.pkl);;JavaScript Object Notation(*.json);;Comma Separated Values(*.csv)')
+    i, j = os.path.splitext(addr[0])
+    if j == '.pkl':
+        file = open(addr[0], 'wb')
         f = pickle.Pickler(file)
         f.dump(origin.CleanDATA)
+    elif j == '.json':
+        file = open(addr[0], 'w')
+        jsoned = copy.deepcopy(origin.CleanDATA)
+        jsonify(jsoned)
+        file.write(json.dumps(jsoned))
+    file.close()
 
 
 def OpenFile(origin, boot=False): 
@@ -657,12 +682,10 @@ class MainWindow(QMainWindow):
         filemenu = menubar.addMenu('File')
         placeholder = filemenu.addAction('Open...')
         placeholder.triggered.connect(lambda: OpenFile(self))
-        placeholder = filemenu.addSeparator()
-        placeholder = filemenu.addAction('Export as PKL')
-        placeholder.triggered.connect(lambda: ExportPkl(self))
-        placeholder = filemenu.addSeparator()
-        placeholder = filemenu.addAction('Import JSON Settings')
-        placeholder = filemenu.addAction('Export JSON Settings')
+        
+        exportmenu = menubar.addMenu('Export')
+        placeholder = exportmenu.addAction('Export Data Structure')
+        placeholder.triggered.connect(lambda: Export(self))
 
         edfreadermenu = menubar.addMenu('EDF Reader')
         placeholder = edfreadermenu.addAction('Change EDF Reader start')

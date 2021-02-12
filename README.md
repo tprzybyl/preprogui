@@ -25,6 +25,7 @@ To do list:
 - Error log, and error management
 - Improve the Data Structure vizualisation tree
 - Rework Data Exportation (Choice of format, choose name etc)
+- Add (a lot of) comments in the code
 - no-gui mode, for advanced users, to make computation from files, using only presets
 
 ANNA wishlist

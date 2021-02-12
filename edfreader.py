@@ -4,7 +4,14 @@
 # by edf2asc (SR Research). Information on saccades, fixations and blinks is
 # read from the EDF, therefore based on SR Research algorithms. For optimal
 # event detection, it might be better to use a different algorithm, e.g.
-
+# Nystrom, M., & Holmqvist, K. (2010). An adaptive algorithm for fixation,
+# saccade, and glissade detection in eyetracking data. Behavior Research
+# Methods, 42, 188-204. doi:10.3758/BRM.42.1.188
+#
+# (C) Edwin Dalmaijer, 2013-2014
+# edwin.dalmaijer@gmail.com
+#
+# version 2 (24-Apr-2014)
 
 
 import copy
