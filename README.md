@@ -1,7 +1,13 @@
 # preprogui
 Pre-Processing Graphical User Interface (For Eyetracking Data)
 
-run command = python3 PReProGui.py
+You need Python 3.x installed
+
+install command :
+pip install -r requirements.txt
+
+run command :
+python3 PReProGui.py
 
 This work-in-progress programm is used to load Eyetracking Data and Metadata, gathered from Eyelink devices.
 It is able to read multiple asc files created from edf2asc (SR Research), and can read any Metadata in a JSON Format.

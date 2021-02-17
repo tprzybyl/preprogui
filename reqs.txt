@@ -1,1 +1,0 @@
-PyQt5 bokeh pickle json easydict numpy scipy

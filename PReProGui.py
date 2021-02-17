@@ -4,6 +4,7 @@ import pickle
 import easydict
 import copy
 import json
+import csv
 import os
 
 import preprocessing
@@ -72,38 +73,37 @@ def SortPlotVariables(origin, settings):
     origin.lock = False
 
 
-def FillTreeItem(item, value):
-    item.setExpanded(True)
-    i = 0
-    if type(value) in [dict, easydict.EasyDict]:
-        for key, val in value.items():
-            child = QTreeWidgetItem()
-            child.setText(0, str(key))
-            item.addChild(child)
-            FillTreeItem(child, val)
-    elif type(value) is list:
-        for val in value:
-            i += 1
-            child = QTreeWidgetItem()
-            item.addChild(child)
-            if type(val) in [dict, easydict.EasyDict]:
-                child.setText(0, str(i) + ' - [dict]')
-                FillTreeItem(child, val)
-            elif type(val) is list:
-                child.setText(0, str(i) + ' - [list]')
-                FillTreeItem(child, val)
-            else:
-                child.setText(0, str(val))
-            child.setExpanded(True)
-    else:
-        child = QTreeWidgetItem()
-        child.setText(0, str(value))
-        item.addChild(child)
-
-
 def FillTree(widget, value):
+    def filltreeitem(item, value):
+        item.setExpanded(True)
+        i = 0
+        if type(value) in [dict, easydict.EasyDict]:
+            for key, val in value.items():
+                child = QTreeWidgetItem()
+                child.setText(0, str(key))
+                item.addChild(child)
+                filltreeitem(child, val)
+        elif type(value) is list:
+            for val in value:
+                i += 1
+                child = QTreeWidgetItem()
+                item.addChild(child)
+                if type(val) in [dict, easydict.EasyDict]:
+                    child.setText(0, str(i) + ' - [dict]')
+                    filltreeitem(child, val)
+                elif type(val) is list:
+                    child.setText(0, str(i) + ' - [list]')
+                    filltreeitem(child, val)
+                else:
+                    child.setText(0, str(val))
+                child.setExpanded(True)
+        else:
+            child = QTreeWidgetItem()
+            child.setText(0, str(value))
+            item.addChild(child)
+
     widget.clear()
-    FillTreeItem(widget.invisibleRootItem(), value)
+    filltreeitem(widget.invisibleRootItem(), value)
 
 
 def AssignCdsValues(origin, idx):
@@ -167,7 +167,7 @@ def Cleaner(origin, data, settings, addr):
         else:
             var = GetNestedDic(origin.variables, (addr + elem).split('.'))
             if (list(var.keys()) != ['desc', 'func', 'name', 'reqs']):
-                    Cleaner(origin,tmp[elem], settings, addr + elem + '.')
+                    Cleaner(origin, tmp[elem], settings, addr + elem + '.')
                     if not data[elem]:
                         del data[elem]
             elif addr + elem not in settings:
@@ -183,7 +183,7 @@ def UpdateTreeAndPlot(origin, settings):
     UpdatePlot(origin)
 
 
-def ComputeVariable(origin, setting, ret):
+def ComputeVariable(origin, setting, dic):
     def ChangeValue(dic, val, keys):
         for key in keys:
             if key != keys[-1]:
@@ -193,19 +193,20 @@ def ComputeVariable(origin, setting, ret):
 
     reqs = GetNestedDic(origin.variables, (setting + '.reqs').split('.'))
     for req in reqs:
-        reqval = GetNestedDic(ret[0], req.split('.'))
+        reqval = GetNestedDic(dic[0], req.split('.'))
         if type(reqval) is np.ndarray:
             if reqval.size == 0:
-                ComputeVariable(origin, req, ret)
+                ComputeVariable(origin, req, dic)
         elif not reqval:
-            ComputeVariable(origin, req, ret)
+            ComputeVariable(origin, req, dic)
 
     function = GetNestedDic(origin.variables, (setting + '.func').split('.'))
+    # print(function, setting)
     if function == 'NONE':
         return
     function = getattr(preprocessing, function)
 
-    for k in ret:
+    for k in dic:
         args = []
         for req in reqs:
             args.append(GetNestedDic(k, req.split('.')))
@@ -275,20 +276,20 @@ def PushApply(origin):
                 j['Screen']['viewing_Distance_cm'] = vd[0]
 
     def LoadMetadata(origin, data):
-        def rec_remove_list(dic, l, idx):
+        def rec_remove_list(dic, datalen, idx):
             for key, item in dic.items():
                 if type(item) is dict:
-                    rec_remove_list(item, l, idx)
+                    rec_remove_list(item, datalen, idx)
                 elif type(item) is list:
                     lg = len(item)
-                    if lg == l:
+                    if lg == datalen:
                         dic[key] = item[idx]
-        l = len(data)
+        datalen = len(data)
         for elem in METADATA:
             i = 0
-            while i < l:
+            while i < datalen:
                 tmp = copy.copy(METADATA[elem])
-                rec_remove_list(tmp, l, i)
+                rec_remove_list(tmp, datalen, i)
                 data[i].update(tmp)
                 i += 1
 
@@ -302,6 +303,8 @@ def PushApply(origin):
         origin.CacheDATA += CreateVariables(origin, DATA[k], origin.settings)
     origin.CleanDATA = copy.deepcopy(origin.CacheDATA)
     Cleaner(origin, origin.CleanDATA, origin.settings, '')
+    for k in origin.CleanDATA:
+        k['tag'] = ''
     UpdateTreeAndPlot(origin, origin.settings)
 
 
@@ -318,45 +321,67 @@ def PushReset(origin):
 
 
 def Export(origin):
-    def jsonify(data):
+    class jsonify(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            else:
+                return super(jsonify, self).default(obj)
+
+    def tsvify(data):
         for k in data:
-            print('///')
-            print(type(k), type(data))
-            print('///')
             if type(data) is dict:
-                print('dic : ',type(data[k]))
                 if type(data[k]) in [list, tuple, dict]:
-                    jsonify(data[k])
+                    tsvify(data[k])
                 elif type(data[k]) is np.ndarray:
                     data[k] = data[k].tolist()
+                elif type(data[k]) is np.floating:
+                    data[k] = float(data[k])
+                elif type(data[k]) is np.integer:
+                    data[k] = int(data[k])
             elif type(k) in [list, tuple, dict]:
-                jsonify(k)
+                tsvify(k)
+            elif type(k) is np.floating:
+                k = float(k)
+            elif type(k) is np.integer:
+                k = int(k)
             elif type(k) is np.ndarray:
                 k = k.to_list()
 
-    addr = QFileDialog.getSaveFileName(directory='finalstructures', filter='Pickle format(*.pkl);;JavaScript Object Notation(*.json);;Comma Separated Values(*.csv)')
+    addr = QFileDialog.getSaveFileName(directory='finalstructures', filter='Pickle format(*.pkl);;JavaScript Object Notation(*.json);;Comma Separated Values(*.csv);;Tabulation Separated Values(*.tsv)')
     i, j = os.path.splitext(addr[0])
     if j == '.pkl':
-        file = open(addr[0], 'wb')
-        f = pickle.Pickler(file)
-        f.dump(origin.CleanDATA)
+        with open(addr[0], 'wb') as file:
+            f = pickle.Pickler(file)
+            f.dump(origin.CleanDATA)
     elif j == '.json':
-        file = open(addr[0], 'w')
-        jsoned = copy.deepcopy(origin.CleanDATA)
-        jsonify(jsoned)
-        file.write(json.dumps(jsoned))
-    file.close()
+        with open(addr[0], 'w') as file:
+            file.write(json.dumps(origin.CleanDATA, cls=jsonify, indent=1))
+    elif j == '.tsv' or j == 'csv':
+        with open(addr[0], 'w') as file:
+            if j == '.tsv':
+                w = csv.DictWriter(file, origin.CleanDATA[0].keys(), delimiter='\t')
+            else:
+                w = csv.DictWriter(file, origin.CleanDATA[0].keys())
+            tmp = copy.deepcopy(origin.CleanDATA)
+            tsvify(tmp)
+            w.writeheader()
+            w.writerows(tmp)
 
 
-def OpenFile(origin, boot=False): 
+def OpenFile(origin, boot=False):
     def readdata(path):
         while not origin.edfstart:
             ret = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'Trial start message')
-            if ret[1] == True:
+            if ret[1] is True:
                 origin.edfstart = ret[0]
         while not origin.edfevents:
             ret = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'List of User-defined events in the edf file (format exemple= "event0,event1,event2,...")')
-            if ret[1] == True:
+            if ret[1] is True:
                 origin.edfevents = ret[0].split(',')
         return(read_edf(path, origin.edfstart, list_events=origin.edfevents))
 
@@ -376,15 +401,24 @@ def OpenFile(origin, boot=False):
                     newvars[k]['func'] = "NONE"
                     newvars[k]['name'] = "DATA"
                     newvars[k]['reqs'] = []
+
+        def recursiveupdate(old, new):
+            for k in old:
+                if list(old[k].keys()) != ['desc', 'func', 'name', 'reqs']:
+                    if k in list(new.keys()):
+                        recursiveupdate(old[k], new[k])
+                        new[k].update(old[k])
+
         newvars = {}
         for k in DATA:
             newvars.update(DATA[k][0])
         tmp = copy.deepcopy(newvars)
         recursivecheck(tmp)
+        recursiveupdate(origin.variables, tmp)
         origin.variables.update(tmp)
         SetTreeSettings(origin)
 
-    if boot == True:
+    if boot is True:
         if not origin.datafiles:
             return
     else:
@@ -399,7 +433,7 @@ def OpenFile(origin, boot=False):
         updatevariables(origin)
 
 
-def OpenMetadata(origin, boot=False): 
+def OpenMetadata(origin, boot=False):
     def recursivecheck(newvars):
         for k in newvars:
             if type(newvars[k]) is dict:
@@ -411,7 +445,7 @@ def OpenMetadata(origin, boot=False):
                 newvars[k]['name'] = "METADATA"
                 newvars[k]['reqs'] = []
 
-    if boot == True:
+    if boot is True:
         if not origin.mdatafiles:
             return
     else:
@@ -453,7 +487,7 @@ def LoadSettings(origin):
                 recurseclear(child)
             child.setCheckState(0, Qt.Unchecked)
 
-    def recurse(parent_item, setting, idx = 0):
+    def recurse(parent_item, setting, idx=0):
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
             grand_children = child.childCount()
@@ -473,14 +507,14 @@ def LoadSettings(origin):
 
 def ChangeEDFReaderStart(origin):
     val = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'Insert wich event is used to define the beginning of a trial')
-    if val[1] == True:
+    if val[1] is True:
         origin.edfstart = val[0]
 
 
 def ChangeEDFReaderEvents(origin):
     val = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'List of User-defined events in the edf file (format exemple= "event0,event1,event2,...")')
-    if val[1] == True:
-        origin.edfevents = val[0].split(',')    
+    if val[1] is True:
+        origin.edfevents = val[0].split(',')
 
 
 def SavePreset(origin, close=False):
@@ -491,7 +525,7 @@ def SavePreset(origin, close=False):
     preset['datafiles'] = origin.datafiles
     preset['edfstart'] = origin.edfstart
     preset['edfevents'] = origin.edfevents
-    if close == True:
+    if close is True:
         file = open('presets/.lastpreset.json', 'w')
     else:
         file = open(QFileDialog.getSaveFileName(directory='presets', filter='JavaScript Object Notation(*.json)')[0], 'w')
@@ -500,7 +534,7 @@ def SavePreset(origin, close=False):
 
 
 def LoadPreset(origin, boot=False):
-    if boot == True:
+    if boot is True:
         try:
             file = open('presets/.lastpreset.json')
             preset = json.loads(file.read())
@@ -541,7 +575,7 @@ def SetTreeSettings(origin):
         child.setText(0, lst)
         child.setFlags(child.flags() | Qt.ItemIsTristate | Qt.ItemIsUserCheckable)
         child.setCheckState(0, Qt.Unchecked)
-    
+
     SaveSettings(origin)
     origin.selecttree.clear()
     headerItem = QTreeWidgetItem()
@@ -563,7 +597,7 @@ class MainWindow(QMainWindow):
         def Start(self):
             LoadPreset(self, True)
             self.show()
-        
+
         QWidget.__init__(self)
         self.area = QWidget()
         self.resize(1100, 620)
@@ -582,13 +616,13 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         SavePreset(self, close=True)
-    	# reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?',
-    	# 		QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-    	# if reply == QMessageBox.Yes:
-    	# 	event.accept()
-    	# 	print('Window closed')
-    	# else:
-    	# 	event.ignore()
+        # reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?',
+        # 		QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        # if reply == QMessageBox.Yes:
+        # 	event.accept()
+        # 	print('Window closed')
+        # else:
+        # 	event.ignore()
 
     def InitLayouts(self):
         self.layt = QHBoxLayout()
@@ -660,7 +694,7 @@ class MainWindow(QMainWindow):
         layt = QHBoxLayout()
         layt.setContentsMargins(3, 3, 3, 3)
         groupbox.setLayout(layt)
-        layt.addWidget(QLabel('Test Index'))
+        layt.addWidget(QLabel('Trial Index'))
         layt.addWidget(self.index)
         layt.addWidget(QLabel('X-Axis'))
         layt.addWidget(self.dpdw1)
@@ -682,7 +716,7 @@ class MainWindow(QMainWindow):
         filemenu = menubar.addMenu('File')
         placeholder = filemenu.addAction('Open...')
         placeholder.triggered.connect(lambda: OpenFile(self))
-        
+
         exportmenu = menubar.addMenu('Export')
         placeholder = exportmenu.addAction('Export Data Structure')
         placeholder.triggered.connect(lambda: Export(self))
