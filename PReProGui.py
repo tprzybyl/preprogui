@@ -196,12 +196,15 @@ def ComputeVariable(origin, setting, dic):
         reqval = GetNestedDic(dic[0], req.split('.'))
         if type(reqval) is np.ndarray:
             if reqval.size == 0:
-                ComputeVariable(origin, req, dic)
+                tmp = ComputeVariable(origin, req, dic)
+                if tmp: return (tmp + ' for ' + setting)
         elif not reqval:
-            ComputeVariable(origin, req, dic)
+            tmp = ComputeVariable(origin, req, dic)
+            if tmp: return (tmp + ' for ' + setting)
 
     function = GetNestedDic(origin.variables, (setting + '.func').split('.'))
-    # print(function, setting)
+    if function == {}:
+        return (setting)
     if function == 'NONE':
         return
     function = getattr(preprocessing, function)
@@ -220,7 +223,8 @@ def CreateVariables(origin, data, settingslist):
         if type(check) is dict:
             if (list(check.keys()) != ['desc', 'func', 'name', 'reqs']):
                 continue
-        ComputeVariable(origin, setting, ret)
+        tmp = ComputeVariable(origin, setting, ret)
+        if tmp : return tmp
     return ret
 
 
@@ -300,7 +304,12 @@ def PushApply(origin):
     for k in DATA:
         LoadMetadata(origin, DATA[k])
         CheckUserInput(k, origin)
-        origin.CacheDATA += CreateVariables(origin, DATA[k], origin.settings)
+        tmp = CreateVariables(origin, DATA[k], origin.settings)
+        if type(tmp) is str:
+            print('MISSING REQUIREMENT :', tmp)
+            return
+        else:
+            origin.CacheDATA += tmp
     origin.CleanDATA = copy.deepcopy(origin.CacheDATA)
     Cleaner(origin, origin.CleanDATA, origin.settings, '')
     for k in origin.CleanDATA:
@@ -422,11 +431,15 @@ def OpenFile(origin, boot=False):
         if not origin.datafiles:
             return
     else:
-        origin.datafiles = QFileDialog.getOpenFileNames(directory='data', filter='ASCii (*.asc)')
+        origin.datafiles = QFileDialog.getOpenFileNames(directory='data', filter='Data (*.asc *.pkl *.json)')
     for k in origin.datafiles[0]:
         with open(k, 'rb') as file:
+            print(k)
             i, j = os.path.splitext(k)
-            if j == '.pkl':
+            print(i, j)
+            if j == '.json':
+                DATA[k] = json.load(file, encoding='latin1')
+            elif j == '.pkl':
                 DATA[k] = pickle.load(file, encoding='latin1')
             else:
                 DATA[k] = readdata(k)
