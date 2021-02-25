@@ -147,12 +147,13 @@ def UpdatePlot(origin):
     yaxis = origin.dpdw2.currentText()
     # Create the Bokeh plot, and adds the scattered filtered values as circles.
     p = figure(plot_width=w, plot_height=h, toolbar_location="above",
-               tools='pan,wheel_zoom,box_zoom,reset,box_select,lasso_select,tap,hover,crosshair')
+               tools='pan,wheel_zoom,box_zoom,reset,hover,crosshair')
     plot = column(p, width=w, height=h)
     p.circle(x=xaxis, y=yaxis, source=cdsvalues, line_color=color, fill_color=color)
-    # Put label with the name of selected axis on the plot
+    # Put label with the name of selected axis on the plot + flip if need be
     p.xaxis.axis_label = xaxis.upper()
     p.yaxis.axis_label = yaxis.upper()
+    p.y_range.flipped = origin.flipy.isChecked()
     # Transforms the bokeh plot into an HTML file,
     # and assign this file to the PyQt HTML reader
     html = file_html(plot, CDN)
@@ -297,7 +298,8 @@ def PushApply(origin):
                 data[i].update(tmp)
                 i += 1
 
-    if DATA == {}:
+    if not DATA:
+        origin.log.insertPlainText('ERROR : NO DATA (You either have not loaded any data files, or data did not read correctly)\n')
         return
     GatherSettings(origin)
     origin.CacheDATA = []
@@ -306,7 +308,7 @@ def PushApply(origin):
         CheckUserInput(k, origin)
         tmp = CreateVariables(origin, DATA[k], origin.settings)
         if type(tmp) is str:
-            print('MISSING REQUIREMENT :', tmp)
+            origin.log.insertPlainText('ERROR : MISSING REQUIREMENT :'+ tmp+ '(Your loaded files do not have the required data needed for calculations)\n')
             return
         else:
             origin.CacheDATA += tmp
@@ -325,6 +327,7 @@ def PushReset(origin):
     origin.datafiles = ()
     origin.edfstart = None
     origin.edfevents = []
+    origin.log.clear()
     LoadSettings(origin)
     ResetMetadata(origin)
 
@@ -385,7 +388,7 @@ def Export(origin):
 def OpenFile(origin, boot=False):
     def readdata(path):
         while not origin.edfstart:
-            ret = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'Trial start message')
+            ret = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'Trial separator message')
             if ret[1] is True:
                 origin.edfstart = ret[0]
         while not origin.edfevents:
@@ -434,16 +437,18 @@ def OpenFile(origin, boot=False):
         origin.datafiles = QFileDialog.getOpenFileNames(directory='data', filter='Data (*.asc *.pkl *.json)')
     for k in origin.datafiles[0]:
         with open(k, 'rb') as file:
-            print(k)
             i, j = os.path.splitext(k)
-            print(i, j)
             if j == '.json':
                 DATA[k] = json.load(file, encoding='latin1')
             elif j == '.pkl':
                 DATA[k] = pickle.load(file, encoding='latin1')
             else:
                 DATA[k] = readdata(k)
-        updatevariables(origin)
+        if DATA[k]:
+            updatevariables(origin)
+        else:
+            del DATA[k]
+            origin.log.insertPlainText('ERROR : COULD NOT FIND ANY TRIAL FOR FILE :'+ i + '\n')
 
 
 def OpenMetadata(origin, boot=False):
@@ -613,7 +618,7 @@ class MainWindow(QMainWindow):
 
         QWidget.__init__(self)
         self.area = QWidget()
-        self.resize(1100, 620)
+        self.resize(1280, 800)
         self.setWindowTitle("PREPROGUI")
         self.setCentralWidget(self.area)
 
@@ -633,23 +638,23 @@ class MainWindow(QMainWindow):
         # 		QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         # if reply == QMessageBox.Yes:
         # 	event.accept()
-        # 	print('Window closed')
+        # pront('Window closed')
         # else:
         # 	event.ignore()
 
     def InitLayouts(self):
-        self.layt = QHBoxLayout()
+        self.layt = QGridLayout()
         self.area.setLayout(self.layt)
         self.settingslayt = QVBoxLayout()
-        self.previewlayt = QVBoxLayout()
+        self.previewlayt = QGridLayout()
         self.plotlayt = QVBoxLayout()
-        self.layt.addLayout(self.settingslayt)
-        self.layt.addLayout(self.previewlayt)
-        self.layt.addLayout(self.plotlayt)
+        self.layt.addLayout(self.settingslayt, 0, 1)
+        self.layt.addLayout(self.previewlayt, 0, 2)
+        self.layt.addLayout(self.plotlayt, 0, 3, 1, 3)
 
     def InitSettings(self):
 
-        # User selection Groupbox, these checkboxes will define the structure later
+        # User selection Groupbox
             groupbox = QGroupBox()
             layt = QGridLayout()
             groupbox.setLayout(layt)
@@ -683,16 +688,19 @@ class MainWindow(QMainWindow):
         self.prevtree = QTreeWidget()
         FillTree(self.prevtree, self.CleanDATA)
         self.prevtree.collapseAll()
-        self.previewlayt.addWidget(self.prevtree)
+        self.log = QPlainTextEdit()
+        self.log.setReadOnly(True)
+        self.previewlayt.addWidget(self.prevtree, 0, 0, 1, 1)
+        self.previewlayt.addWidget(self.log, 1, 0, 40, 1)
 
     def InitPlot(self):
         self.check = False
         self.htmlreader = QWebEngineView()
-        self.htmlreader.setFixedSize(500, 500)
+        self.htmlreader.setFixedSize(600, 600)
         self.plot_variables = list()
 
         groupbox = QGroupBox('Axis Selection')
-        groupbox.setFixedSize(500, 50)
+        groupbox.setFixedSize(600, 50)
         self.index = QSpinBox()
         self.index.setMinimum(1)
         self.index.setMaximumWidth(60)
@@ -703,6 +711,7 @@ class MainWindow(QMainWindow):
         self.dpdw1 = QComboBox()
         self.dpdw2 = QComboBox()
         self.dpdw3 = QComboBox()
+        self.flipy = QCheckBox('Flip Y')
 
         layt = QHBoxLayout()
         layt.setContentsMargins(3, 3, 3, 3)
@@ -715,10 +724,12 @@ class MainWindow(QMainWindow):
         layt.addWidget(self.dpdw2)
         layt.addWidget(QLabel('Color'))
         layt.addWidget(self.dpdw3)
+        layt.addWidget(self.flipy)
         self.lock = False
         self.dpdw1.currentTextChanged.connect(lambda checked: UpdatePlot(self))
         self.dpdw2.currentTextChanged.connect(lambda checked: UpdatePlot(self))
         self.dpdw3.currentTextChanged.connect(lambda checked: UpdatePlot(self))
+        self.flipy.stateChanged.connect(lambda checked: UpdatePlot(self))
 
         self.plotlayt.addWidget(self.htmlreader)
         self.plotlayt.addWidget(groupbox)
