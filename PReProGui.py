@@ -26,9 +26,13 @@ from bokeh.layouts import row, column
 
 DATA = {}
 METADATA = {}
-with open('variables2.json', 'r') as file:
-    variables = json.loads(file.read())
 
+def JsonLoadsCheck(read, origin):
+    try :
+        return json.loads(read)
+    except json.decoder.JSONDecodeError:
+        origin.log.insertPlainText('ERROR : JSON READ ERROR(The JSON contains mistakes : Replaced content with empty dict, might cause errors)\n')
+        return dict()
 
 def GetNestedDic(dic, keys):
     for key in keys:
@@ -251,24 +255,24 @@ def PushApply(origin):
             bswc, bshc, bvd = False, False, False
             if 'screen_width_cm' not in DATA[k][0]['Screen']:
                 bswc = True
-                swc = QInputDialog.getDouble(origin, 'INPUT REQUIRED', 'Screen Width in cm',
+                swc = QInputDialog.getDouble(origin, 'INPUT REQUIRED : Screen Width in cm', k + ':\nScreen Width in cm',
                                              1, -2147483647, 2147483647, 3)
             if 'screen_height_cm' not in DATA[k][0]['Screen']:
                 bshc = True
-                shc = QInputDialog.getDouble(origin, 'INPUT REQUIRED', 'Screen Height in cm',
+                shc = QInputDialog.getDouble(origin, 'INPUT REQUIRED : Screen Height in cm', k + ':\nScreen Height in cm',
                                              1, -2147483647, 2147483647, 3)
             if 'viewing_Distance_cm' not in DATA[k][0]['Screen']:
                 bvd = True
-                vd = QInputDialog.getDouble(origin, 'INPUT REQUIRED', 'User/Screen distance in cm',
+                vd = QInputDialog.getDouble(origin, 'INPUT REQUIRED : User/Screen distance in cm', k + ':\nUser/Screen distance in cm',
                                             1, -2147483647, 2147483647, 3)
         else:
             bol = True
             bswc, bshc, bvd = True, True, True
-            swc = QInputDialog.getDouble(origin, 'INPUT REQUIRED', 'Screen Width in cm',
+            swc = QInputDialog.getDouble(origin, 'INPUT REQUIRED : Screen Width in cm', k + ':\nScreen Width in cm',
                                          1, -2147483647, 2147483647, 3)
-            shc = QInputDialog.getDouble(origin, 'INPUT REQUIRED', 'Screen Height in cm',
+            shc = QInputDialog.getDouble(origin, 'INPUT REQUIRED : Screen Height in cm', k + ':\nScreen Height in cm',
                                          1, -2147483647, 2147483647, 3)
-            vd = QInputDialog.getDouble(origin, 'INPUT REQUIRED', 'User/Screen distance in cm',
+            vd = QInputDialog.getDouble(origin, 'INPUT REQUIRED : User/Screen distance in cm', k + ':\nUser/Screen distance in cm',
                                         1, -2147483647, 2147483647, 3)
         for j in DATA[k]:
             if bol is True:
@@ -385,7 +389,7 @@ def Export(origin):
             w.writerows(tmp)
 
 
-def OpenFile(origin, boot=False):
+def OpenFile(origin, boot=False, clean=False):
     def readdata(path):
         while not origin.edfstart:
             ret = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'Trial separator message')
@@ -435,6 +439,8 @@ def OpenFile(origin, boot=False):
             return
     else:
         origin.datafiles = QFileDialog.getOpenFileNames(directory='data', filter='Data (*.asc *.pkl *.json)')
+    if clean is True:
+        DATA.clear()
     for k in origin.datafiles[0]:
         with open(k, 'rb') as file:
             i, j = os.path.splitext(k)
@@ -448,7 +454,8 @@ def OpenFile(origin, boot=False):
             updatevariables(origin)
         else:
             del DATA[k]
-            origin.log.insertPlainText('ERROR : COULD NOT FIND ANY TRIAL FOR FILE :'+ i + '\n')
+            origin.log.insertPlainText('ERROR : COULD NOT FIND ANY TRIAL FOR FILE :'+ i + '(The file may be wrong or the EDF Reader trial separator event is not set correctly)\n')
+    UpdateDataLists(origin.datamanager,origin)
 
 
 def OpenMetadata(origin, boot=False):
@@ -463,6 +470,39 @@ def OpenMetadata(origin, boot=False):
                 newvars[k]['name'] = "METADATA"
                 newvars[k]['reqs'] = []
 
+    def updatevariables(origin):
+        def recursivecheck(newvars):
+            for k in newvars:
+                bol = True
+                if type(newvars[k]) is dict:
+                    if list(newvars[k].keys()) == ['x', 'y']:
+                        bol = True
+                    else:
+                        bol = False
+                        recursivecheck(newvars[k])
+                if bol is True:
+                    newvars[k] = dict()
+                    newvars[k]['desc'] = "DATA"
+                    newvars[k]['func'] = "NONE"
+                    newvars[k]['name'] = "DATA"
+                    newvars[k]['reqs'] = []
+
+        def recursiveupdate(old, new):
+            for k in old:
+                if list(old[k].keys()) != ['desc', 'func', 'name', 'reqs']:
+                    if k in list(new.keys()):
+                        recursiveupdate(old[k], new[k])
+                        new[k].update(old[k])
+
+        newvars = {}
+        for k in METADATA:
+            newvars.update(METADATA[k])
+        tmp = copy.deepcopy(newvars)
+        recursivecheck(tmp)
+        recursiveupdate(origin.variables, tmp)
+        origin.variables.update(tmp)
+        SetTreeSettings(origin)
+
     if boot is True:
         if not origin.mdatafiles:
             return
@@ -474,21 +514,16 @@ def OpenMetadata(origin, boot=False):
             if j == '.pkl':
                 METADATA[k] = pickle.load(file, encoding='latin1')
             else:
-                METADATA[k] = json.loads(file.read())
-    newvars = {}
-    for k in METADATA:
-        newvars.update(METADATA[k])
-    tmp = copy.deepcopy(METADATA)
-    recursivecheck(newvars)
-    METADATA.update(tmp)
-    origin.variables.update(newvars)
-    SetTreeSettings(origin)
+                METADATA[k] = JsonLoadsCheck(file.read(), origin)
+    updatevariables(origin)
+    UpdateDataLists(origin.datamanager,origin)
 
 
 def ResetMetadata(origin):
-    origin.variables = copy.copy(variables)
+    origin.variables = copy.copy(origin.safevariables)
     METADATA = {}
     SetTreeSettings(origin)
+    UpdateDataLists(origin.datamanager,origin)
 
 
 def SaveSettings(origin):
@@ -524,13 +559,13 @@ def LoadSettings(origin):
 
 
 def ChangeEDFReaderStart(origin):
-    val = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'Insert wich event is used to define the beginning of a trial')
+    val = QInputDialog.getText(origin, 'EDF READER SETTINGS : Trial Separator Event', 'Insert wich event is used to define the beginning of a single trial')
     if val[1] is True:
         origin.edfstart = val[0]
 
 
 def ChangeEDFReaderEvents(origin):
-    val = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'List of User-defined events in the edf file (format exemple= "event0,event1,event2,...")')
+    val = QInputDialog.getText(origin, 'EDF READER SETTINGS : Event list', 'List of User-defined events in the edf file (format exemple= "event0,event1,event2,...")')
     if val[1] is True:
         origin.edfevents = val[0].split(',')
 
@@ -555,12 +590,12 @@ def LoadPreset(origin, boot=False):
     if boot is True:
         try:
             file = open('presets/.lastpreset.json')
-            preset = json.loads(file.read())
+            preset = JsonLoadsCheck(file.read(), origin)
         except FileNotFoundError:
             preset = {}
     else:
         file = open(QFileDialog.getOpenFileName(directory='presets', filter='JavaScript Object Notation (*.json)')[0], 'r')
-        preset = json.loads(file.read())
+        preset = JsonLoadsCheck(file.read(), origin)
 
     try:
         origin.mdatafiles = preset['mdatafiles']
@@ -609,6 +644,84 @@ def SetTreeSettings(origin):
     LoadSettings(origin)
 
 
+def OpenDataManager(origin):
+    if origin.datamanageropen is False:
+        origin.datamanageropen = True
+        origin.datamanager = (DataManager(origin))
+    else:
+        origin.datamanager.hide()
+        origin.datamanager.show()
+
+
+def UpdateDataLists(manager, origin):
+    if origin.datamanageropen is False:
+        return()
+    manager.datalist.clear()
+    manager.metadatalist.clear()
+    for k in DATA:
+        manager.datalist.insertItem(0,k)
+    for k in METADATA:
+        manager.metadatalist.insertItem(0,k)
+
+
+def DeleteData(manager, origin):
+    elems = list()
+    for k in manager.datalist.selectedItems():
+        elems.append(k.text())
+    for k in elems:
+        del DATA[k]
+    UpdateDataLists(manager,origin)
+
+
+def DeleteMetadata(manager, origin):
+    elems = list()
+    for k in manager.metadatalist.selectedItems():
+        elems.append(k.text())
+    for k in elems:
+        del METADATA[k]
+    UpdateDataLists(manager,origin)
+
+
+class DataManager(QMainWindow):
+    def __init__(self, origin):
+        QWidget.__init__(self)
+        self.area = QWidget()
+        self.setWindowTitle("PREPROGUI Data Manager")
+        self.setCentralWidget(self.area)
+        self.layt = QGridLayout()
+        self.area.setLayout(self.layt)
+        self.InitDataLists(origin)
+        self.InitButtons(origin)
+        self.show()
+    
+    def InitDataLists(self, origin):
+        self.datalabel = QLabel('Loaded Data List')
+        self.metadatalabel = QLabel('Loaded Metadata List')
+        self.layt.addWidget(self.datalabel,0,0,1,2)
+        self.layt.addWidget(self.metadatalabel,0,2,1,2)
+        self.datalist = QListWidget()
+        self.metadatalist = QListWidget()
+        self.datalist.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.metadatalist.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.layt.addWidget(self.datalist,1,0,1,2)
+        self.layt.addWidget(self.metadatalist,1,2,1,2)
+        UpdateDataLists(self,origin)
+
+    def InitButtons(self, origin):
+        self.deldata = QPushButton('Delete Selected Data')
+        self.adddata = QPushButton('Add Data')
+        self.delmetadata = QPushButton('Delete Selected Metadata')
+        self.addmetadata = QPushButton('Add Metadata')
+        self.deldata.clicked.connect(lambda:DeleteData(self, origin))
+        self.adddata.clicked.connect(lambda:OpenFile(origin))
+        self.delmetadata.clicked.connect(lambda:DeleteMetadata(self, origin))
+        self.addmetadata.clicked.connect(lambda:OpenMetadata(origin))
+        self.layt.addWidget(self.deldata,2,0)
+        self.layt.addWidget(self.adddata,2,1)
+        self.layt.addWidget(self.delmetadata,2,2)
+        self.layt.addWidget(self.addmetadata,2,3)
+
+
 class MainWindow(QMainWindow):
     # Init a new window and all the PyQt5 widgets required to run the GUI
     def __init__(self):
@@ -651,7 +764,9 @@ class MainWindow(QMainWindow):
         self.layt.addLayout(self.settingslayt, 0, 1)
         self.layt.addLayout(self.previewlayt, 0, 2)
         self.layt.addLayout(self.plotlayt, 0, 3, 1, 3)
-
+        self.log = QPlainTextEdit()
+        self.log.setReadOnly(True)
+        
     def InitSettings(self):
 
         # User selection Groupbox
@@ -661,7 +776,9 @@ class MainWindow(QMainWindow):
             layt.setSpacing(3)
 
         # Selection Tree Widget
-            self.variables = copy.copy(variables)
+            with open('variables2.json', 'r') as file:
+                self.safevariables = JsonLoadsCheck(file.read(), self)
+            self.variables = copy.copy(self.safevariables)
             self.selecttree = QTreeWidget()
             SetTreeSettings(self)
             self.settingslayt.addWidget(self.selecttree)
@@ -675,7 +792,7 @@ class MainWindow(QMainWindow):
             self.datafiles = ()
 
         # Apply & Reset Buttons
-            pushreset = QPushButton('Reset')
+            pushreset = QPushButton('Clear Everything')
             pushapply = QPushButton('Apply')
             pushreset.clicked.connect(lambda: PushReset(self))
             pushapply.clicked.connect(lambda: PushApply(self))
@@ -688,8 +805,6 @@ class MainWindow(QMainWindow):
         self.prevtree = QTreeWidget()
         FillTree(self.prevtree, self.CleanDATA)
         self.prevtree.collapseAll()
-        self.log = QPlainTextEdit()
-        self.log.setReadOnly(True)
         self.previewlayt.addWidget(self.prevtree, 0, 0, 1, 1)
         self.previewlayt.addWidget(self.log, 1, 0, 40, 1)
 
@@ -735,18 +850,30 @@ class MainWindow(QMainWindow):
         self.plotlayt.addWidget(groupbox)
 
     def InitMenu(self):
+        self.datamanager = 0
+        self.datamanageropen = False
         menubar = self.menuBar()
 
         filemenu = menubar.addMenu('File')
-        placeholder = filemenu.addAction('Open...')
+        placeholder = filemenu.addAction('Open Datafiles (Clear Data)')
+        placeholder.triggered.connect(lambda: OpenFile(self,clean=True))
+        placeholder = filemenu.addAction('Add Datafiles')
         placeholder.triggered.connect(lambda: OpenFile(self))
+        filemenu.addSeparator()
+        placeholder = filemenu.addAction('Add Metadata')
+        placeholder.triggered.connect(lambda: OpenMetadata(self))
+        placeholder = filemenu.addAction('Clear Metadata')
+        placeholder.triggered.connect(lambda: ResetMetadata(self))
+        filemenu.addSeparator()
+        placeholder = filemenu.addAction('Data Manager')
+        placeholder.triggered.connect(lambda: OpenDataManager(self))
 
         exportmenu = menubar.addMenu('Export')
         placeholder = exportmenu.addAction('Export Data Structure')
         placeholder.triggered.connect(lambda: Export(self))
 
         edfreadermenu = menubar.addMenu('EDF Reader')
-        placeholder = edfreadermenu.addAction('Change EDF Reader start')
+        placeholder = edfreadermenu.addAction('Change EDF Reader trial separator')
         placeholder.triggered.connect(lambda: ChangeEDFReaderStart(self))
         placeholder = edfreadermenu.addAction('Change EDF Reader events')
         placeholder.triggered.connect(lambda: ChangeEDFReaderEvents(self))
@@ -756,12 +883,6 @@ class MainWindow(QMainWindow):
         placeholder.triggered.connect(lambda: SavePreset(self))
         placeholder = presetmenu.addAction('Load Preset')
         placeholder.triggered.connect(lambda: LoadPreset(self))
-
-        importmenu = menubar.addMenu('Metadata')
-        placeholder = importmenu.addAction('Import Metadata')
-        placeholder.triggered.connect(lambda: OpenMetadata(self))
-        placeholder = importmenu.addAction('Reset Metadata')
-        placeholder.triggered.connect(lambda: ResetMetadata(self))
 
 
 app = QApplication(sys.argv)
