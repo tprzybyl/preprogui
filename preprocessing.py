@@ -25,19 +25,22 @@ def Bias(msg):
 def ScreenWidthPx(msg):
     for k in msg:
         if k[1].split(' ')[0] == 'GAZE_COORDS':
-            return float(k[1].split(' ')[-2])
+            if float(k[1].split(' ')[-2]):
+                return float(k[1].split(' ')[-2])
 
 
 def ScreenHeightPx(msg):
     for k in msg:
         if k[1].split(' ')[0] == 'GAZE_COORDS':
-            return float(k[1].split(' ')[-1])
+            if float(k[1].split(' ')[-1]):
+                return float(k[1].split(' ')[-1])
 
 
 def ScreenFramerate(msg):
     for k in msg:
         if k[1].split(' ')[0:2] == ['!MODE', 'RECORD']:
-            return float(k[1].split(' ')[3])
+            if float(k[1].split(' ')[3]):
+                return float(k[1].split(' ')[3])
 
 
 def ScreenWidthDeg(screen_width_cm, viewing_Distance_cm):

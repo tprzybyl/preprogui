@@ -1,0 +1,10 @@
+{
+    "Screen" : {
+                "framerate": 1000.0,
+                "screen_height_px": 1080.0,
+                "screen_height_cm": 69.0,
+                "screen_width_px": 1920.0,
+                "screen_width_cm": 1337.0,
+                "viewing_Distance_cm": 420.0
+                }
+}

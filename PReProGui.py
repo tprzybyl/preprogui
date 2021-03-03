@@ -218,7 +218,12 @@ def ComputeVariable(origin, setting, dic):
         args = []
         for req in reqs:
             args.append(GetNestedDic(k, req.split('.')))
-        ChangeValue(k, function(*args), setting.split('.'))
+        try:
+            value = function(*args)
+            if value:
+                ChangeValue(k, value, setting.split('.'))
+        except TypeError:
+            return
 
 
 def CreateVariables(origin, data, settingslist):
@@ -438,7 +443,7 @@ def OpenFile(origin, boot=False, clean=False):
         if not origin.datafiles:
             return
     else:
-        origin.datafiles = QFileDialog.getOpenFileNames(directory='data', filter='Data (*.asc *.pkl *.json)')
+        origin.datafiles = QFileDialog.getOpenFileNames(directory='data', filter='Data Format (*.asc *.pkl *.json)')
     if clean is True:
         DATA.clear()
     for k in origin.datafiles[0]:
@@ -459,16 +464,31 @@ def OpenFile(origin, boot=False, clean=False):
 
 
 def OpenMetadata(origin, boot=False):
-    def recursivecheck(newvars):
-        for k in newvars:
-            if type(newvars[k]) is dict:
-                recursivecheck(newvars[k])
-            else:
-                newvars[k] = dict()
-                newvars[k]['desc'] = "METADATA"
-                newvars[k]['func'] = "NONE"
-                newvars[k]['name'] = "METADATA"
-                newvars[k]['reqs'] = []
+    def loadseparatedvalues(name, origin, j):
+        data = list()
+        if j == '.csv':
+            with open(name, 'r') as file:
+                tmp = csv.reader(file, delimiter=',')
+                for line in tmp:
+                    data.append(line)
+        elif j == '.tsv':
+            with open(name, 'r') as file:
+                tmp = csv.reader(file, delimiter='\t')
+                for line in tmp:
+                    data.append(line)
+        names = copy.copy(data[0])
+        del data[0]
+        ret = dict()
+        y = 0
+        for k in names:
+            ret[k] = []
+            for i in data:
+                ret[k].append(i[y])
+            y += 1
+        for k in ret:
+            if len(ret[k]) == 1:
+                ret[k] = ret[k][0]
+        return ret
 
     def updatevariables(origin):
         def recursivecheck(newvars):
@@ -507,11 +527,13 @@ def OpenMetadata(origin, boot=False):
         if not origin.mdatafiles:
             return
     else:
-        origin.mdatafiles = QFileDialog.getOpenFileNames(directory='data', filter='JavaScript Object Notation (*.json);;Pickle Data Structure = (*.pkl)')
+        origin.mdatafiles = QFileDialog.getOpenFileNames(directory='data', filter='Metadata Format (*.pkl *.json *.tsv *.csv)')
     for k in origin.mdatafiles[0]:
         with open(k, 'rb') as file:
             i, j = os.path.splitext(k)
-            if j == '.pkl':
+            if j == '.tsv' or j == '.csv':
+                METADATA[k] = loadseparatedvalues(k, origin, j)
+            elif j == '.pkl':
                 METADATA[k] = pickle.load(file, encoding='latin1')
             else:
                 METADATA[k] = JsonLoadsCheck(file.read(), origin)
@@ -766,7 +788,7 @@ class MainWindow(QMainWindow):
         self.layt.addLayout(self.plotlayt, 0, 3, 1, 3)
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
-        
+
     def InitSettings(self):
 
         # User selection Groupbox
@@ -776,7 +798,7 @@ class MainWindow(QMainWindow):
             layt.setSpacing(3)
 
         # Selection Tree Widget
-            with open('variables2.json', 'r') as file:
+            with open('variables.json', 'r') as file:
                 self.safevariables = JsonLoadsCheck(file.read(), self)
             self.variables = copy.copy(self.safevariables)
             self.selecttree = QTreeWidget()
