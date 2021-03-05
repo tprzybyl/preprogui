@@ -26,10 +26,6 @@ Ideas welcome!
 To do list:
 - Make README cleaner
 - An actual documentation
-- Allow to load in multiple data formats, including pre-existing data structures (JSON, Pickle, TSV..)
-- Show more informations, such as currently loaded files
-- Error log, and error management
-- Improve the Data Structure vizualisation tree
 - Add (a lot of) comments in the code
 - no-gui mode, for advanced users, to make computation from files, using only presets
 

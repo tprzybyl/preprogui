@@ -27,14 +27,19 @@ from bokeh.layouts import row, column
 DATA = {}
 METADATA = {}
 
+
 def JsonLoadsCheck(read, origin):
-    try :
+    # This function simply reads JSON, and makes sure a wrong file will not crash the program
+    try:
         return json.loads(read)
     except json.decoder.JSONDecodeError:
         origin.log.insertPlainText('ERROR : JSON READ ERROR(The JSON contains mistakes : Replaced content with empty dict, might cause errors)\n')
         return dict()
 
+
 def GetNestedDic(dic, keys):
+    # A tiny function to get values from dictionnaries nested into each other using a list of strings like an adress
+    # If the dictionnary doens't exists, it creates an empty one
     for key in keys:
         try:
             dic = dic[key]
@@ -45,7 +50,8 @@ def GetNestedDic(dic, keys):
 
 
 def SortPlotVariables(origin, settings):
-
+    # This functions checks what variables are available for plottings and adds them as plottable variables
+    # The condition being that the length of a list of numbers, must be the same as the length of time
     def rec_check(plot_variables, settings, lg, addr):
         for setting in settings:
             var = GetNestedDic(origin.CleanDATA[0], (addr + setting).split('.'))
@@ -78,6 +84,8 @@ def SortPlotVariables(origin, settings):
 
 
 def FillTree(widget, value):
+    # This function clears a PyQt Tree Widget, and then fills it with a dictionnary effectively updating it
+    # It then calls a recursive function to go through the entire dictionnary and adds in every individual item
     def filltreeitem(item, value):
         item.setExpanded(True)
         i = 0
@@ -105,24 +113,21 @@ def FillTree(widget, value):
             child = QTreeWidgetItem()
             child.setText(0, str(value))
             item.addChild(child)
-
     widget.clear()
     filltreeitem(widget.invisibleRootItem(), value)
 
 
-def AssignCdsValues(origin, idx):
-    cdsvalues = {}
-    texts = [origin.dpdw1.currentText(),
-             origin.dpdw2.currentText(), origin.dpdw3.currentText()]
-    for k in texts:
-            cdsvalues[k] = GetNestedDic(origin.CacheDATA[idx], k.split('.'))
-    return cdsvalues
-
-
 def UpdatePlot(origin):
+    def assigncdsvalues(origin, idx):
+        cdsvalues = {}
+        texts = [origin.dpdw1.currentText(),
+                 origin.dpdw2.currentText(), origin.dpdw3.currentText()]
+        for k in texts:
+                cdsvalues[k] = GetNestedDic(origin.CacheDATA[idx], k.split('.'))
+        return cdsvalues
     w = 500
     h = 500
-    # First creates a new filtered ColumnDataSource with a copy of the values
+    # Check some conditions to make that the plot can be created
     if origin.lock is True:
         return
     elif origin.check is False:
@@ -131,25 +136,19 @@ def UpdatePlot(origin):
     elif len(origin.plot_variables) == 0:
         origin.htmlreader.setHtml('No readable value selected!')
         return
-    # Event if the selection is changed
-    # in the bokeh plot using some JS dark magic
-    # origin.filtered.selected.js_on_change('indices', CustomJS(code="""
-    #    var inds = cb_obj.indices;
-    #    console.log(inds)
-    # """)
-    # )
     idx = origin.index.value() - 1
-    cdsvalues = AssignCdsValues(origin, idx)
+    # Creates a new filtered ColumnDataSource (custom data format for bokeh) with a copy of the selected values
+    cdsvalues = assigncdsvalues(origin, idx)
 
-    # Select the color range according to the selected value in "Color"
+    # Creates the color range
     color = linear_cmap(origin.dpdw3.currentText(), 'Plasma256',
                         np.nanmin(cdsvalues[origin.dpdw3.currentText()]),
                         np.nanmax(cdsvalues[origin.dpdw3.currentText()]))
-    # Set the name of the axis according to
+    # Set the name of the plot axis according to
     # the selected values in x and y axis
     xaxis = origin.dpdw1.currentText()
     yaxis = origin.dpdw2.currentText()
-    # Create the Bokeh plot, and adds the scattered filtered values as circles.
+    # Create the Bokeh plot, and adds the values as dots inside of it.
     p = figure(plot_width=w, plot_height=h, toolbar_location="above",
                tools='pan,wheel_zoom,box_zoom,reset,hover,crosshair')
     plot = column(p, width=w, height=h)
@@ -165,6 +164,10 @@ def UpdatePlot(origin):
 
 
 def Cleaner(origin, data, settings, addr):
+    # Recursive functions goes throught a dictionnary (CleanData, wich is initially a copy of CacheData)
+    # Then it reads all the selected variables, checking what is selected or not
+    # Finally it removes every unwanted variables that wasn't selected by the user
+    # (Like unselected Data that was calculated because it was needed for a selected one)
     tmp = copy.copy(data)
     for elem in tmp:
         if type(tmp) is not dict:
@@ -177,15 +180,6 @@ def Cleaner(origin, data, settings, addr):
                         del data[elem]
             elif addr + elem not in settings:
                 del data[elem]
-
-
-def UpdateTreeAndPlot(origin, settings):
-    origin.index.setMaximum(len(origin.CacheDATA))
-    origin.prevtree.clear()
-    FillTree(origin.prevtree, origin.CleanDATA)
-    origin.prevtree.collapseAll()
-    SortPlotVariables(origin, settings)
-    UpdatePlot(origin)
 
 
 def ComputeVariable(origin, setting, dic):
@@ -202,10 +196,12 @@ def ComputeVariable(origin, setting, dic):
         if type(reqval) is np.ndarray:
             if reqval.size == 0:
                 tmp = ComputeVariable(origin, req, dic)
-                if tmp: return (tmp + ' for ' + setting)
+                if tmp:
+                    return (tmp + ' for ' + setting)
         elif not reqval:
             tmp = ComputeVariable(origin, req, dic)
-            if tmp: return (tmp + ' for ' + setting)
+            if tmp:
+                return (tmp + ' for ' + setting)
 
     function = GetNestedDic(origin.variables, (setting + '.func').split('.'))
     if function == {}:
@@ -234,7 +230,8 @@ def CreateVariables(origin, data, settingslist):
             if (list(check.keys()) != ['desc', 'func', 'name', 'reqs']):
                 continue
         tmp = ComputeVariable(origin, setting, ret)
-        if tmp : return tmp
+        if tmp:
+            return tmp
     return ret
 
 
@@ -254,6 +251,7 @@ def GatherSettings(origin):
 
 
 def PushApply(origin):
+    # This function is called whenever the user clicks on the Apply button, starting the creation of a data structure
     def CheckUserInput(k, origin):
         if 'Screen' in DATA[k][0]:
             bol = False
@@ -307,28 +305,45 @@ def PushApply(origin):
                 data[i].update(tmp)
                 i += 1
 
+    # Check if there is any data loaded
     if not DATA:
         origin.log.insertPlainText('ERROR : NO DATA (You either have not loaded any data files, or data did not read correctly)\n')
         return
+    # Read the selected settings in the variable trees, creating a list of adresses, used later or for calculations
     GatherSettings(origin)
+    # Create or reset the CacheDATA
     origin.CacheDATA = []
     for k in DATA:
+        # For every loaded data file: Add all the Metadata, ask what is the screen size in cm and user distance
         LoadMetadata(origin, DATA[k])
         CheckUserInput(k, origin)
+        # Creates the data structure, and then check if there is no error returned, if not, adds it to CacheData
         tmp = CreateVariables(origin, DATA[k], origin.settings)
         if type(tmp) is str:
-            origin.log.insertPlainText('ERROR : MISSING REQUIREMENT :'+ tmp+ '(Your loaded files do not have the required data needed for calculations)\n')
+            origin.log.insertPlainText('ERROR : MISSING REQUIREMENT :' + tmp + '(Your loaded files do not have the required data needed for calculations)\n')
             return
         else:
             origin.CacheDATA += tmp
+    # When all computation is done, creates copy of CacheData, and then call Cleaner on this copy, removing unwanted data
     origin.CleanDATA = copy.deepcopy(origin.CacheDATA)
     Cleaner(origin, origin.CleanDATA, origin.settings, '')
+    # Create a "tag" data, allowing the user to comment every trial, tagging them to their liking
     for k in origin.CleanDATA:
         k['tag'] = ''
-    UpdateTreeAndPlot(origin, origin.settings)
+    # Check the amount of trials for trial selection in plotting later on
+    origin.index.setMaximum(len(origin.CacheDATA))
+    # Clear and then fill the data structure previsualisation tree
+    origin.prevtree.clear()
+    FillTree(origin.prevtree, origin.CleanDATA)
+    origin.prevtree.collapseAll()
+    # Sort wich data is plottable, and wich is not, and then creates the plot
+    SortPlotVariables(origin, origin.settings)
+    UpdatePlot(origin)
 
 
 def PushReset(origin):
+    # This function is called whenever the user clicks on the Reset button
+    # It deletes and reset absolutely everything, be it loaded data, settings, metadata, or edf configuration
     DATA.clear()
     METADATA.clear()
     origin.savesettings = []
@@ -342,6 +357,9 @@ def PushReset(origin):
 
 
 def Export(origin):
+    # This function is called and the user wants to export the CleanDATA structure
+    # The jsonify class and the tsvify function are here to get rid of some python specifict data format
+    # making the data code agnostic and not Python only
     class jsonify(json.JSONEncoder):
         def default(self, obj):
             if isinstance(obj, np.integer):
@@ -373,7 +391,9 @@ def Export(origin):
             elif type(k) is np.ndarray:
                 k = k.to_list()
 
+    # Ask the user where and under what name and format the file will be save
     addr = QFileDialog.getSaveFileName(directory='finalstructures', filter='Pickle format(*.pkl);;JavaScript Object Notation(*.json);;Comma Separated Values(*.csv);;Tabulation Separated Values(*.tsv)')
+    # Check what file format was selected and writes down the data structure accordingly
     i, j = os.path.splitext(addr[0])
     if j == '.pkl':
         with open(addr[0], 'wb') as file:
@@ -395,6 +415,9 @@ def Export(origin):
 
 
 def OpenFile(origin, boot=False, clean=False):
+    # This function is used when the user wants to load data into the programm
+    # readdata is used and an EDF (asc format) is loaded in, reading the file and returning a python dict
+    # updatevariables is a function that updates the selectable data list, adding anything that is new
     def readdata(path):
         while not origin.edfstart:
             ret = QInputDialog.getText(origin, 'EDF READER SETTINGS', 'Trial separator message')
@@ -439,13 +462,17 @@ def OpenFile(origin, boot=False, clean=False):
         origin.variables.update(tmp)
         SetTreeSettings(origin)
 
+    # Check if the function was called at the start, wich loads in previously loaded data, when PRPG was closed
     if boot is True:
         if not origin.datafiles:
             return
     else:
         origin.datafiles = QFileDialog.getOpenFileNames(directory='data', filter='Data Format (*.asc *.pkl *.json)')
+    # Check if the user is loading the Clear Data function, wich removes all loaded data before loading the new one
     if clean is True:
         DATA.clear()
+    # Read the data with the appropriate function, returning a dictionnary
+    # If the Data is an EDF (under asc format) file, it does have to call edfreader function
     for k in origin.datafiles[0]:
         with open(k, 'rb') as file:
             i, j = os.path.splitext(k)
@@ -455,15 +482,19 @@ def OpenFile(origin, boot=False, clean=False):
                 DATA[k] = pickle.load(file, encoding='latin1')
             else:
                 DATA[k] = readdata(k)
+    # Check if the Data exists and adds it in the program, otherwise don't add it, and put a message in the error log
         if DATA[k]:
             updatevariables(origin)
         else:
             del DATA[k]
-            origin.log.insertPlainText('ERROR : COULD NOT FIND ANY TRIAL FOR FILE :'+ i + '(The file may be wrong or the EDF Reader trial separator event is not set correctly)\n')
-    UpdateDataLists(origin.datamanager,origin)
+            origin.log.insertPlainText('ERROR : COULD NOT FIND ANY TRIAL FOR FILE :' + i + '(The file may be wrong or the EDF Reader trial separator event is not set correctly)\n')
+    # Update the lists in the Data Manager
+    UpdateDataLists(origin.datamanager, origin)
 
 
 def OpenMetadata(origin, boot=False):
+    # Very similar to OpenFile, but for Metadata files
+    # loadseparatedvalues is called when csv or tsv files are loaded in and need to be sorted in a dictionnary
     def loadseparatedvalues(name, origin, j):
         data = list()
         if j == '.csv':
@@ -538,22 +569,25 @@ def OpenMetadata(origin, boot=False):
             else:
                 METADATA[k] = JsonLoadsCheck(file.read(), origin)
     updatevariables(origin)
-    UpdateDataLists(origin.datamanager,origin)
+    UpdateDataLists(origin.datamanager, origin)
 
 
 def ResetMetadata(origin):
+    # Called in PushReset or when the users clics on Reset Metadata, it simply removes all the Metadata
     origin.variables = copy.copy(origin.safevariables)
     METADATA = {}
     SetTreeSettings(origin)
-    UpdateDataLists(origin.datamanager,origin)
+    UpdateDataLists(origin.datamanager, origin)
 
 
 def SaveSettings(origin):
+    # Saves what are the selected settings in the variables tree widgets
     GatherSettings(origin)
     origin.savesettings = origin.settings
 
 
 def LoadSettings(origin):
+    # Loads the saved settings, and then automatically selects item in the variables trees
     def recurseclear(parent_item):
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
@@ -566,13 +600,13 @@ def LoadSettings(origin):
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
             grand_children = child.childCount()
-            try:
-                if grand_children > 0:
-                    recurse(child, setting, idx + 1)
-                elif child.text(0) == setting[idx]:
-                    child.setCheckState(0, Qt.Checked)
-            except:
-                pass
+            # try:
+            if grand_children > 0:
+                recurse(child, setting, idx + 1)
+            elif child.text(0) == setting[idx]:
+                child.setCheckState(0, Qt.Checked)
+            # except:
+            #    pass
 
     origin.settings = origin.savesettings
     recurseclear(origin.selecttree.invisibleRootItem())
@@ -581,18 +615,22 @@ def LoadSettings(origin):
 
 
 def ChangeEDFReaderStart(origin):
+    # Called when the user wants to change the trial separator event, or when it is needed
     val = QInputDialog.getText(origin, 'EDF READER SETTINGS : Trial Separator Event', 'Insert wich event is used to define the beginning of a single trial')
     if val[1] is True:
         origin.edfstart = val[0]
 
 
 def ChangeEDFReaderEvents(origin):
+    # Called when the user wants to change the events that need to be found in the edf file or when needed
     val = QInputDialog.getText(origin, 'EDF READER SETTINGS : Event list', 'List of User-defined events in the edf file (format exemple= "event0,event1,event2,...")')
     if val[1] is True:
         origin.edfevents = val[0].split(',')
 
 
 def SavePreset(origin, close=False):
+    # Save a preset of settings, containing the loaded data, metadata, edfreader settings, and the selected variables
+    # The file is saved as a JSON, either a user made one, or an invisible one when the programm is closed
     SaveSettings(origin)
     preset = dict()
     preset['settings'] = origin.settings
@@ -609,6 +647,7 @@ def SavePreset(origin, close=False):
 
 
 def LoadPreset(origin, boot=False):
+    # This reads a preset of settings, either user made, or the invisible one made when the programm exits
     if boot is True:
         try:
             file = open('presets/.lastpreset.json')
@@ -645,6 +684,7 @@ def LoadPreset(origin, boot=False):
 
 
 def SetTreeSettings(origin):
+    # This function clears and then fills the variable selection tree
     def SubTreeSettings(origin, lst, parent):
         child = QTreeWidgetItem(parent)
         child.setText(0, lst)
@@ -667,6 +707,8 @@ def SetTreeSettings(origin):
 
 
 def OpenDataManager(origin):
+    # This function is used when the user wants to access the data manager windows
+    # It either creates it, or places it in front of the main window
     if origin.datamanageropen is False:
         origin.datamanageropen = True
         origin.datamanager = (DataManager(origin))
@@ -676,35 +718,40 @@ def OpenDataManager(origin):
 
 
 def UpdateDataLists(manager, origin):
+    # This functions updates the loaded data lists in the data manager, it uses the dict keys of DATA and METADATA
     if origin.datamanageropen is False:
         return()
     manager.datalist.clear()
     manager.metadatalist.clear()
     for k in DATA:
-        manager.datalist.insertItem(0,k)
+        manager.datalist.insertItem(0, k)
     for k in METADATA:
-        manager.metadatalist.insertItem(0,k)
+        manager.metadatalist.insertItem(0, k)
 
 
 def DeleteData(manager, origin):
+    # This function removes loaded data that is selected in the data manager tree
     elems = list()
     for k in manager.datalist.selectedItems():
         elems.append(k.text())
     for k in elems:
         del DATA[k]
-    UpdateDataLists(manager,origin)
+    UpdateDataLists(manager, origin)
 
 
 def DeleteMetadata(manager, origin):
+    # This function removes loaded metadata that is selected in the data manager tree
     elems = list()
     for k in manager.metadatalist.selectedItems():
         elems.append(k.text())
     for k in elems:
         del METADATA[k]
-    UpdateDataLists(manager,origin)
+    UpdateDataLists(manager, origin)
 
 
 class DataManager(QMainWindow):
+    # The Data manager windows is a small windows that is used to check what is the currently loaded data and metadata
+    # It does contains a small amount of push buttons, useful for deletion and addition of datafiles
     def __init__(self, origin):
         QWidget.__init__(self)
         self.area = QWidget()
@@ -715,33 +762,33 @@ class DataManager(QMainWindow):
         self.InitDataLists(origin)
         self.InitButtons(origin)
         self.show()
-    
+
     def InitDataLists(self, origin):
         self.datalabel = QLabel('Loaded Data List')
         self.metadatalabel = QLabel('Loaded Metadata List')
-        self.layt.addWidget(self.datalabel,0,0,1,2)
-        self.layt.addWidget(self.metadatalabel,0,2,1,2)
+        self.layt.addWidget(self.datalabel, 0, 0, 1, 2)
+        self.layt.addWidget(self.metadatalabel, 0, 2, 1, 2)
         self.datalist = QListWidget()
         self.metadatalist = QListWidget()
         self.datalist.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.metadatalist.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.layt.addWidget(self.datalist,1,0,1,2)
-        self.layt.addWidget(self.metadatalist,1,2,1,2)
-        UpdateDataLists(self,origin)
+        self.layt.addWidget(self.datalist, 1, 0, 1, 2)
+        self.layt.addWidget(self.metadatalist, 1, 2, 1, 2)
+        UpdateDataLists(self, origin)
 
     def InitButtons(self, origin):
         self.deldata = QPushButton('Delete Selected Data')
         self.adddata = QPushButton('Add Data')
         self.delmetadata = QPushButton('Delete Selected Metadata')
         self.addmetadata = QPushButton('Add Metadata')
-        self.deldata.clicked.connect(lambda:DeleteData(self, origin))
-        self.adddata.clicked.connect(lambda:OpenFile(origin))
-        self.delmetadata.clicked.connect(lambda:DeleteMetadata(self, origin))
-        self.addmetadata.clicked.connect(lambda:OpenMetadata(origin))
-        self.layt.addWidget(self.deldata,2,0)
-        self.layt.addWidget(self.adddata,2,1)
-        self.layt.addWidget(self.delmetadata,2,2)
-        self.layt.addWidget(self.addmetadata,2,3)
+        self.deldata.clicked.connect(lambda: DeleteData(self, origin))
+        self.adddata.clicked.connect(lambda: OpenFile(origin))
+        self.delmetadata.clicked.connect(lambda: DeleteMetadata(self, origin))
+        self.addmetadata.clicked.connect(lambda: OpenMetadata(origin))
+        self.layt.addWidget(self.deldata, 2, 0)
+        self.layt.addWidget(self.adddata, 2, 1)
+        self.layt.addWidget(self.delmetadata, 2, 2)
+        self.layt.addWidget(self.addmetadata, 2, 3)
 
 
 class MainWindow(QMainWindow):
@@ -878,7 +925,7 @@ class MainWindow(QMainWindow):
 
         filemenu = menubar.addMenu('File')
         placeholder = filemenu.addAction('Open Datafiles (Clear Data)')
-        placeholder.triggered.connect(lambda: OpenFile(self,clean=True))
+        placeholder.triggered.connect(lambda: OpenFile(self, clean=True))
         placeholder = filemenu.addAction('Add Datafiles')
         placeholder.triggered.connect(lambda: OpenFile(self))
         filemenu.addSeparator()
