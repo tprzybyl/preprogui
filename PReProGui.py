@@ -600,13 +600,13 @@ def LoadSettings(origin):
         for i in range(parent_item.childCount()):
             child = parent_item.child(i)
             grand_children = child.childCount()
-            # try:
-            if grand_children > 0:
-                recurse(child, setting, idx + 1)
-            elif child.text(0) == setting[idx]:
-                child.setCheckState(0, Qt.Checked)
-            # except:
-            #    pass
+            try:
+                if grand_children > 0:
+                    recurse(child, setting, idx + 1)
+                elif child.text(0) == setting[idx]:
+                    child.setCheckState(0, Qt.Checked)
+            except IndexError:
+                pass
 
     origin.settings = origin.savesettings
     recurseclear(origin.selecttree.invisibleRootItem())
