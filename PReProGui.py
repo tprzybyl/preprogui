@@ -329,7 +329,8 @@ def PushApply(origin):
     Cleaner(origin, origin.CleanDATA, origin.settings, '')
     # Create a "tag" data, allowing the user to comment every trial, tagging them to their liking
     for k in origin.CleanDATA:
-        k['tag'] = ''
+        if not k['tag']:
+            k['tag'] = None
     # Check the amount of trials for trial selection in plotting later on
     origin.index.setMaximum(len(origin.CacheDATA))
     # Clear and then fill the data structure previsualisation tree
@@ -401,7 +402,7 @@ def Export(origin):
             f.dump(origin.CleanDATA)
     elif j == '.json':
         with open(addr[0], 'w') as file:
-            file.write(json.dumps(origin.CleanDATA, cls=jsonify, indent=1))
+            file.write(json.dumps(origin.CleanDATA, cls=jsonify))
     elif j == '.tsv' or j == 'csv':
         with open(addr[0], 'w') as file:
             if j == '.tsv':
@@ -683,6 +684,21 @@ def LoadPreset(origin, boot=False):
     LoadSettings(origin)
 
 
+def TrialTag(origin):
+    elem = origin.prevtree.selectedItems()[0]
+    if not elem.parent():
+        val = QInputDialog.getText(origin, 'TRIAL TAG', 'Insert a comment to tag the event, nothing to un-tag')
+        if val[1] is False:
+            return
+        else:
+            idx = origin.prevtree.invisibleRootItem().indexOfChild(elem)
+            origin.CleanDATA[idx]['tag'] = val[0]
+            for i in range(elem.childCount()):
+                child = elem.child(i)
+                if child.text(0) == 'tag':
+                    child.child(0).setText(0, val[0])
+
+
 def SetTreeSettings(origin):
     # This function clears and then fills the variable selection tree
     def SubTreeSettings(origin, lst, parent):
@@ -872,6 +888,7 @@ class MainWindow(QMainWindow):
 
     def InitPreview(self):
         self.prevtree = QTreeWidget()
+        self.prevtree.itemDoubleClicked.connect(lambda: TrialTag(self))
         FillTree(self.prevtree, self.CleanDATA)
         self.prevtree.collapseAll()
         self.previewlayt.addWidget(self.prevtree, 0, 0, 1, 1)
