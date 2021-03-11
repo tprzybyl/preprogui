@@ -26,8 +26,6 @@ Ideas welcome!
 To do list:
 - Make README cleaner
 - An actual documentation
-- Add (a lot of) comments in the code
 - no-gui mode, for advanced users, to make computation from files, using only presets
 
 ANNA wishlist
-- allowing to manually "tag" trials as errors

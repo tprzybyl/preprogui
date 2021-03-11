@@ -329,7 +329,10 @@ def PushApply(origin):
     Cleaner(origin, origin.CleanDATA, origin.settings, '')
     # Create a "tag" data, allowing the user to comment every trial, tagging them to their liking
     for k in origin.CleanDATA:
-        if not k['tag']:
+        try:
+            if not k['tag']:
+                k['tag'] = None
+        except KeyError:
             k['tag'] = None
     # Check the amount of trials for trial selection in plotting later on
     origin.index.setMaximum(len(origin.CacheDATA))

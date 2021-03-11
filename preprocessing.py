@@ -121,11 +121,22 @@ def DetectMissac(V_deg, time):
     return misaccades
 
 
+def PositionDegCentered(P_deg, screen_height_deg, screen_width_deg):
+    P_degC = copy(P_deg)
+    halfheight = screen_height_deg / 2
+    halfwidth = screen_width_deg / 2
+    for k in P_degC['x']:
+        PdegC['x'][k] -= halfwidth
+    for k in P_degC['y']:
+        PdegC['y'][k] -= halfheight
+    return P_degC
+
+
 def PositionDeg(P_px, px_per_deg):
     P_deg = copy(P_px)
     for k in P_deg:
         for j in P_deg[k]:
-            j /= px_per_deg
+            PdegC[k][j] /= px_per_deg
     return P_deg
 
 

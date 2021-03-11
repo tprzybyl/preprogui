@@ -5,6 +5,12 @@
         "name": "Position in Degrees",
         "reqs": ["P_px", "Screen.px_per_deg"]
     },
+    "P_deg_centered": {
+        "desc": "This is the position of the eyes in degrees on the screen.",
+        "func": "PositionDegCentered",
+        "name": "Position in Degrees Centered",
+        "reqs": ["P_deg", "Screen.screen_height_deg", "Screen.screen_width_deg"]
+    },
     "P_deg_f": {
         "desc": "This is the position of the eyes in degrees on the screen. A filter has been applied",
         "func": "Filtering",
