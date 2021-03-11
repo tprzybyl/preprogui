@@ -136,7 +136,7 @@ def PositionDeg(P_px, px_per_deg):
     P_deg = copy(P_px)
     for k in P_deg:
         for j in P_deg[k]:
-            PdegC[k][j] /= px_per_deg
+            P_deg[k][j] /= px_per_deg
     return P_deg
 
 
