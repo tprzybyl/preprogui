@@ -122,21 +122,30 @@ def DetectMissac(V_deg, time):
 
 
 def PositionDegCentered(P_deg, screen_height_deg, screen_width_deg):
-    P_degC = copy(P_deg)
     halfheight = screen_height_deg / 2
     halfwidth = screen_width_deg / 2
-    for k in P_degC['x']:
-        P_degC['x'][k] -= halfwidth
-    for k in P_degC['y']:
-        P_degC['y'][k] -= halfheight
+    P_degC = {}
+    P_degC['x'] = []
+    P_degC['y'] = []
+    for k in P_deg['x']:
+        P_degC['x'].append(k - halfwidth)
+    for k in P_deg['y']:
+        P_degC['y'].append(k - halfheight)
+    P_degC['x'] = np.array(P_degC['x'])
+    P_degC['y'] = np.array(P_degC['y'])
     return P_degC
 
 
 def PositionDeg(P_px, px_per_deg):
-    P_deg = copy(P_px)
-    for k in P_deg:
-        for j in P_deg[k]:
-            P_deg[k][j] /= px_per_deg
+    P_deg = {}
+    P_deg['x'] = []
+    P_deg['y'] = []
+    for k in P_px['x']:
+        P_deg['x'].append(k / px_per_deg)
+    for k in P_px['y']:
+        P_deg['y'].append(k / px_per_deg)
+    P_deg['x'] = np.array(P_deg['x'])
+    P_deg['y'] = np.array(P_deg['y'])
     return P_deg
 
 
