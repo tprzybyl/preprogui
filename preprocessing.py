@@ -126,9 +126,9 @@ def PositionDegCentered(P_deg, screen_height_deg, screen_width_deg):
     halfheight = screen_height_deg / 2
     halfwidth = screen_width_deg / 2
     for k in P_degC['x']:
-        PdegC['x'][k] -= halfwidth
+        P_degC['x'][k] -= halfwidth
     for k in P_degC['y']:
-        PdegC['y'][k] -= halfheight
+        P_degC['y'][k] -= halfheight
     return P_degC
 
 
