@@ -1,4 +1,4 @@
-import sys
+import sys, traceback
 import numpy as np
 import pickle
 import easydict
@@ -203,12 +203,12 @@ def ComputeVariable(origin, setting, dic):
             if tmp:
                 return (tmp + ' for ' + setting)
 
-    function = GetNestedDic(origin.variables, (setting + '.func').split('.'))
-    if function == {}:
+    funcstr = GetNestedDic(origin.variables, (setting + '.func').split('.'))
+    if funcstr == {}:
         return (setting)
-    if function == 'NONE':
+    if funcstr == 'NONE':
         return
-    function = getattr(preprocessing, function)
+    function = getattr(preprocessing, funcstr)
 
     for k in dic:
         args = []
@@ -218,7 +218,8 @@ def ComputeVariable(origin, setting, dic):
             value = function(*args)
             if value:
                 ChangeValue(k, value, setting.split('.'))
-        except TypeError:
+        except (TypeError, ValueError, IndexError) as e:
+            origin.log.insertPlainText('ERROR for ' + funcstr + ' at setting ' + setting + '\n' + traceback.format_exc())
             return
 
 
@@ -645,7 +646,11 @@ def SavePreset(origin, close=False):
     if close is True:
         file = open('presets/.lastpreset.json', 'w')
     else:
-        file = open(QFileDialog.getSaveFileName(directory='presets', filter='JavaScript Object Notation(*.json)')[0], 'w')
+        dialog = QFileDialog.getSaveFileName(directory='presets', filter='JavaScript Object Notation(*.json)')
+        if dialog[0]:
+            file = open(dialog[0], 'w')
+        else:
+            return
     file.write(json.dumps(preset, sort_keys=True, indent=4))
     file.close()
 
