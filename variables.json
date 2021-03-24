@@ -1,22 +1,4 @@
 {
-    "P_deg": {
-        "desc": "This is the position of the eyes in degrees on the screen.",
-        "func": "PositionDeg",
-        "name": "Position in Degrees",
-        "reqs": ["P_px", "Screen.px_per_deg"]
-    },
-    "P_deg_centered": {
-        "desc": "This is the position of the eyes in degrees on the screen.",
-        "func": "PositionDegCentered",
-        "name": "Position in Degrees Centered",
-        "reqs": ["P_deg", "Screen.screen_height_deg", "Screen.screen_width_deg"]
-    },
-    "P_deg_f": {
-        "desc": "This is the position of the eyes in degrees on the screen. A filter has been applied",
-        "func": "Filtering",
-        "name": "Bias",
-        "reqs": ["P_deg", "Screen.framerate"]
-    },
     "Screen": {
         "framerate": {
             "desc": "This is the refresh rate of the screen, the result is in frames per second, aka in hertz(hz)",
@@ -73,60 +55,108 @@
             "reqs": []
         }
     },
-    "V_deg": {
-        "desc": "This is the velocity of the eye in degrees",
-        "func": "Velocity",
-        "name": "Velocity in degrees",
-        "reqs": ["P_deg", "Screen.framerate"]
+    "Pos": {
+        "P_deg": {
+            "desc": "This is the position of the eyes in degrees on the screen.",
+            "func": "PositionDeg",
+            "name": "Position in Degrees",
+            "reqs": ["P_px", "Screen.px_per_deg"]
+        },
+        "P_deg_centered": {
+            "desc": "This is the centered position of the eyes in degrees on the screen.",
+            "func": "PositionDegCentered",
+            "name": "Position in Degrees Centered",
+            "reqs": ["Pos.P_deg", "Screen.screen_height_deg", "Screen.screen_width_deg"]
+        },
+        "P_deg_f": {
+            "desc": "This is the position of the eyes in degrees on the screen. A filter has been applied",
+            "func": "Filtering",
+            "name": "Position in Degrees Filtered",
+            "reqs": ["Pos.P_deg", "Screen.framerate"]
+        }
     },
-    "V_deg_NaN": {
-        "desc": "This is the velocity of the eye in degrees after suppressing saccades",
-        "func": "SuppSaccades",
-        "name": "Velocity in degrees, suppressed saccades",
-        "reqs": ["V_deg", "events.Saccades", "events.microSaccades", "time"]
+    "Velo": {
+        "V_deg": {
+            "desc": "This is the velocity of the eye in degrees/sec",
+            "func": "Velocity",
+            "name": "Velocity in degrees/sec",
+            "reqs": ["Pos.P_deg", "Screen.framerate"]
+        },
+        "V_deg_NaN": {
+            "desc": "This is the velocity of the eye in degrees/sec after suppressing saccades",
+            "func": "SuppSaccades",
+            "name": "Velocity in degrees/sec, suppressed saccades",
+            "reqs": ["Velo.V_deg", "events.Saccades", "events.microSaccades", "time"]
+        },
+        "V_deg_f": {
+            "desc": "This is the velocity of the eye in degrees/sec, it is using filtered position data",
+            "func": "Velocity",
+            "name": "Velocity in degrees/sec, filtered pos",
+            "reqs": ["Pos.P_deg_f", "Screen.framerate"]
+        },
+        "V_deg_f_NaN": {
+            "desc": "This is the velocity of the eye in degrees/sec after suppressing saccades, it is using filtered position data",
+            "func": "SuppSaccades",
+            "name": "Velocity in degrees/sec, filtered pos, suppressed saccades",
+            "reqs": ["Velo.V_deg", "events.Saccades", "events.microSaccades", "time"]
+        },
+        "V_deg_f_f": {
+            "desc": "This is the filtered velocity of the eye in degrees/sec, it is using filtered position data",
+            "func": "Filtering",
+            "name": "Filtered Velocity in degrees/sec, filtered pos",
+            "reqs": ["Velo.V_deg_f", "Screen.framerate"]
+        },
+        "V_deg_f_f_NaN": {
+            "desc": "This is the filtered velocity of the eye in degrees/sec after suppressing saccades, it is using filtered position data",
+            "func": "SuppSaccades",
+            "name": "Filtered Velocity in degrees/sec, filtered pos, suppressed saccades",
+            "reqs": ["Velo.V_deg_f_f", "events.Saccades", "events.microSaccades", "time"]
+        }
     },
-    "V_deg_f": {
-        "desc": "This is the velocity of the eye in degrees, it is using filtered position data",
-        "func": "Velocity",
-        "name": "Velocity in degrees, filtered pos",
-        "reqs": ["P_deg_f", "Screen.framerate"]
-    },
-    "V_deg_f_NaN": {
-        "desc": "This is the velocity of the eye in degrees after suppressing saccades, it is using filtered position data",
-        "func": "SuppSaccades",
-        "name": "Velocity in degrees, filtered pos, suppressed saccades",
-        "reqs": ["V_deg", "events.Saccades", "events.microSaccades", "time"]
-    },
-    "V_deg_f_f": {
-        "desc": "This is the filtered velocity of the eye in degrees, it is using filtered position data",
-        "func": "Filtering",
-        "name": "Filtered Velocity in degrees, filtered pos",
-        "reqs": ["V_deg_f", "Screen.framerate"]
-    },
-    "V_deg_f_f_NaN": {
-        "desc": "This is the filtered velocity of the eye in degrees after suppressing saccades, it is using filtered position data",
-        "func": "SuppSaccades",
-        "name": "Filtered Velocity in degrees, filtered pos, suppressed saccades",
-        "reqs": ["V_deg_f_f", "events.Saccades", "events.microSaccades", "time"]
-    },
-    "bias": {
-        "desc": "I am unsure tbh... i will have to ask",
-        "func": "Bias",
-        "name": "Bias",
-        "reqs": ["events.msg"]
-    },
-    "dir_target": {
-        "desc": "This is the direction of the target. AFAIK, it is only bidirectionnal, so it is only -1 or 1, respectively left and right (not sure?)",
-        "func": "DirTarget",
-        "name": "Directon of the target",
-        "reqs": ["events.msg"]
+    "Accel": {
+        "Ac_deg": {
+            "desc": "This is the acceleration of the eye in degrees/sec",
+            "func": "Acceleration",
+            "name": "Acceleration in degrees/sec/sec",
+            "reqs": ["Velo.V_deg", "Screen.framerate"]
+        },
+        "Ac_deg_NaN": {
+            "desc": "This is the acceleration of the eye in degrees/sec/sec after suppressing saccades",
+            "func": "SuppSaccades",
+            "name": "Acceleration in degrees/sec/sec, suppressed saccades",
+            "reqs": ["Accel.Ac_deg", "events.Saccades", "events.microSaccades", "time"]
+        },
+        "Ac_deg_f": {
+            "desc": "This is the acceleration of the eye in degrees/sec/sec, it is using filtered velocity data",
+            "func": "Acceleration",
+            "name": "Acceleration in degrees/sec/sec, filtered pos",
+            "reqs": ["Velo.V_deg_f", "Screen.framerate"]
+        },
+        "Ac_deg_f_NaN": {
+            "desc": "This is the acceleration of the eye in degrees/sec/sec after suppressing saccades, it is using filtered velocity data",
+            "func": "SuppSaccades",
+            "name": "Acceleration in degrees/sec/sec, filtered pos, suppressed saccades",
+            "reqs": ["Accel.Ac_deg", "events.Saccades", "events.microSaccades", "time"]
+        },
+        "Ac_deg_f_f": {
+            "desc": "This is the filtered acceleration of the eye in degrees/sec/sec, it is using filtered velocity data",
+            "func": "Filtering",
+            "name": "Filtered Acceleration in degrees/sec/sec, filtered pos",
+            "reqs": ["Accel.Ac_deg_f", "Screen.framerate"]
+        },
+        "Ac_deg_f_f_NaN": {
+            "desc": "This is the filtered acceleration of the eye in degrees/sec after suppressing saccades, it is using filtered velocity data",
+            "func": "SuppSaccades",
+            "name": "Filtered Velocity in degrees/sec, filtered pos, suppressed saccades",
+            "reqs": ["Accel.Ac_deg_f_f", "events.Saccades", "events.microSaccades", "time"]
+        }
     },
     "events": {
         "microSaccades": {
             "desc": "These are microSaccades that are not detected by the eyelink, they are calculated with a velocity check",
             "func": "DetectMissac",
             "name": "microSaccades",
-            "reqs": ["V_deg", "time"]
+            "reqs": ["Velo.V_deg", "time"]
         }
     }
 }

@@ -6,22 +6,6 @@ from copy import copy
 from scipy import signal
 
 
-def DirTarget(msg):
-    if int(msg[0][1][-1]) % 2:
-        dir_target = 1
-    else:
-        dir_target = -1
-        return dir_target
-
-
-def Bias(msg):
-    if msg[0][1][-3] == '0':
-        bias = 0
-    else:
-        bias = 1
-        return bias
-
-
 def ScreenWidthPx(msg):
     for k in msg:
         if k[1].split(' ')[0] == 'GAZE_COORDS':
@@ -178,11 +162,21 @@ def Filtering(data, framerate):
     return ret
 
 
-def Velocity(P_deg, framerate):
-    ret = copy(P_deg)
+def Velocity(Pos, framerate):
+    nsamples = 1 # How many datapoints are taken into account 
+    ret = copy(Pos)
     # Gradient in deg/sec or px/sec
     for k in ret:
-        ret[k] = np.gradient(ret[k]) * framerate
+        ret[k] = np.gradient(ret[k], nsamples) * framerate
+    return ret
+
+
+def Acceleration(Vel, framerate):
+    nsamples = 1 # How many datapoints are taken into account 
+    ret = copy(Vel)
+    # Gradient in deg/sec or px/sec
+    for k in ret:
+        ret[k] = np.gradient(ret[k], nsamples) * framerate
     return ret
 
 

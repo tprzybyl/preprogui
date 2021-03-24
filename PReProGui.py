@@ -1,4 +1,5 @@
 import sys, traceback
+import argparse
 import numpy as np
 import pickle
 import easydict
@@ -186,7 +187,11 @@ def ComputeVariable(origin, setting, dic):
     def ChangeValue(dic, val, keys):
         for key in keys:
             if key != keys[-1]:
-                dic = dic[key]
+                try:
+                    dic = dic[key]
+                except KeyError:
+                    dic[key] = dict()
+                    dic = dic[key]
             else:
                 dic[key] = val
 
@@ -978,7 +983,20 @@ class MainWindow(QMainWindow):
         placeholder = presetmenu.addAction('Load Preset')
         placeholder.triggered.connect(lambda: LoadPreset(self))
 
+print ('Number of arguments:', len(sys.argv), 'arguments.')
+print ('Argument List:', str(sys.argv))
+# Create the parser
+#my_parser = argparse.ArgumentParser(description='List the content of a folder')
 
+# Add the arguments
+#my_parser.add_argument('-n',
+#                        action="store_true"
+#                        help='Activate the nogui option')
+
+# Execute the parse_args() method
+#args = my_parser.parse_args()
+#if args.nogui:
+#    print('YES')
 app = QApplication(sys.argv)
 ex = MainWindow()
 ex.show()
